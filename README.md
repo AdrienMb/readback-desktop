@@ -17,6 +17,19 @@ yarn install
 yarn tauri dev
 ```
 
+## Signing in
+
+1. Click **Continue with ChatGPT**. Your browser opens the ChatGPT sign-in page.
+2. Approve Readback, allowing ChatGPT plan usage.
+3. Come back to the app, pick a model, and send a prompt.
+
+Readback stores non-secret settings in `~/Library/Application Support/app.readback.desktop/`
+and your tokens in the macOS Keychain (item `app.readback.desktop.chatgpt`). Development builds
+aren't signed, so after a rebuild macOS may ask whether Readback can use its Keychain item;
+choose **Always Allow**.
+
+The terminal running `yarn tauri dev` logs the issued client ID on each sign-in (never a token).
+
 ## Checks
 
 ```sh

@@ -9,7 +9,11 @@ ChatGPT plan (no API key), sends a prompt, and sees the streamed reply.
 ```
 src/                     React 19 + Mantine 9 frontend (webview). Display only.
   main.tsx               MantineProvider + root
-  App.tsx                the single window
+  App.tsx                the single window: signed out / connected / reauth states
+  api.ts                 typed wrappers for the Tauri commands (display data only)
+  components/            ContinueWithChatGPT (official button), ManageUsageButton, PromptPanel,
+                         ErrorNotice, WelcomeModal
+  assets/                official ChatGPT logos (from developers.openai.com)
 src-tauri/               Rust backend (Tauri 2)
   src/lib.rs             Tauri builder, plugins, command registration
   src/chatgpt/           SIWC runtime
