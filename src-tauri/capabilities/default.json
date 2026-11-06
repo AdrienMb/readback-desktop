@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window. No opener permission: URLs are opened from Rust only.",
+  "description": "Capability for the main window. No opener permission: URLs are opened from Rust only. Window dragging is for the custom title bar.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
 }

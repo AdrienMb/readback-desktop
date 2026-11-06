@@ -1,23 +1,22 @@
 import {
+  ActionIcon,
   Badge,
-  Box,
-  Button,
   Group,
   Menu,
-  NavLink,
   ScrollArea,
   Stack,
-  Text,
   Tooltip,
   Tree,
+  UnstyledButton,
   useTree,
 } from '@mantine/core';
 import { useMemo } from 'react';
+import type { Entry, EntryFlag, Vault } from './api';
+import { ChevronDownIcon, ComposeIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon } from './icons';
+import classes from './Sidebar.module.css';
+import { type Entries, buildTree } from './tree';
 
 type TreeExpandedState = Record<string, boolean>;
-import type { Entry, EntryFlag, Vault } from './api';
-import { ChatIcon, ChevronIcon, FolderIcon, NoteIcon } from './icons';
-import { type Entries, buildTree } from './tree';
 
 const FLAG_LABELS: Record<EntryFlag, string> = {
   too_large: 'Too large',
@@ -25,6 +24,9 @@ const FLAG_LABELS: Record<EntryFlag, string> = {
   unreadable: 'No access',
   offloaded: 'In iCloud',
 };
+
+/** Indent per tree level, so a note's text lines up under its folder's name. */
+const LEVEL_OFFSET = 19;
 
 export interface EntryActions {
   onOpen: (entry: Entry) => void;
@@ -44,14 +46,11 @@ interface Props extends EntryActions {
   openPath: string | null;
   expanded: TreeExpandedState;
   onExpandedChange: (state: TreeExpandedState) => void;
-  view: 'notes' | 'chatgpt';
-  onShowChatGpt: () => void;
   onChangeVault: () => void;
-  changingVault: boolean;
 }
 
 export function Sidebar(props: Props) {
-  const { vault, rootPath, entries, openPath, expanded, onExpandedChange, view } = props;
+  const { vault, rootPath, entries, openPath, expanded, onExpandedChange } = props;
   const data = useMemo(() => buildTree(entries), [entries]);
   const tree = useTree({
     expandedState: expanded,
@@ -59,116 +58,114 @@ export function Sidebar(props: Props) {
     selectedState: openPath ? [openPath] : [],
   });
   const ready = vault?.status === 'ok';
+  const path = rootPath ?? vault?.path ?? null;
 
   return (
     <Stack gap={0} h="100%">
-      <Box p="xs" pb={0}>
-        <NavLink
-          label="ChatGPT"
-          leftSection={<ChatIcon />}
-          active={view === 'chatgpt'}
-          onClick={props.onShowChatGpt}
-          variant="light"
-        />
-      </Box>
-
-      <Stack gap={4} p="sm" pb="xs">
-        <Group justify="space-between" wrap="nowrap" gap="xs">
-          <Text fw={600} size="sm" truncate="end">
-            {vault?.name ?? 'Notes'}
-          </Text>
-          {vault && vault.status !== 'not_set' && (
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              onClick={props.onChangeVault}
-              loading={props.changingVault}
-            >
-              Change
-            </Button>
-          )}
-        </Group>
-        {(rootPath ?? vault?.path) && (
-          <Text size="xs" c="dimmed" truncate="start" title={rootPath ?? vault?.path ?? ''}>
-            {rootPath ?? vault?.path}
-          </Text>
+      <div className={classes.header}>
+        {vault && vault.status !== 'not_set' ? (
+          <Menu position="bottom-start" shadow="md" width={240} withinPortal>
+            <Menu.Target>
+              <UnstyledButton className={classes.vaultButton} title={path ?? undefined}>
+                <span className={classes.vaultName}>{vault.name ?? 'Notes'}/</span>
+                <span className={classes.vaultChevron}>
+                  <ChevronDownIcon size={15} />
+                </span>
+              </UnstyledButton>
+            </Menu.Target>
+            <Menu.Dropdown>
+              {path && (
+                <Menu.Label style={{ overflowWrap: 'anywhere' }} title={path}>
+                  {path}
+                </Menu.Label>
+              )}
+              {ready && <Menu.Item onClick={() => props.onReveal('')}>Reveal in Finder</Menu.Item>}
+              <Menu.Item onClick={props.onChangeVault}>Change notes folder…</Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        ) : (
+          <span className={classes.vaultButton}>Notes</span>
         )}
+
         {ready && (
-          <Group gap="xs" mt={4}>
-            <Button size="compact-xs" variant="default" onClick={() => props.onNewNote('')}>
-              New note
-            </Button>
-            <Button size="compact-xs" variant="default" onClick={() => props.onNewFolder('')}>
-              New folder
-            </Button>
+          <Group gap={2} wrap="nowrap">
+            <Tooltip label="New folder" openDelay={400}>
+              <ActionIcon
+                variant="subtle"
+                size={28}
+                className={classes.iconButton}
+                aria-label="New folder"
+                onClick={() => props.onNewFolder('')}
+              >
+                <FolderPlusIcon size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="New note" openDelay={400}>
+              <ActionIcon
+                variant="subtle"
+                size={28}
+                className={classes.iconButton}
+                aria-label="New note"
+                onClick={() => props.onNewNote('')}
+              >
+                <ComposeIcon size={18} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
         )}
-      </Stack>
+      </div>
 
-      <ScrollArea style={{ flex: 1 }} px="xs" pb="sm">
+      <ScrollArea style={{ flex: 1 }} px={8} pb="sm">
         {!ready && (
-          <Text size="xs" c="dimmed" px="xs">
+          <div className={classes.hint}>
             {vault?.status === 'not_set'
               ? 'Choose a notes folder to get started.'
               : vault
                 ? 'Your notes folder isn’t available.'
                 : ''}
-          </Text>
+          </div>
         )}
         {ready && data.length === 0 && (
-          <Text size="xs" c="dimmed" px="xs">
+          <div className={classes.hint}>
             No notes yet. Create one here, or add Markdown files to this folder in Finder.
-          </Text>
+          </div>
         )}
         {ready && data.length > 0 && (
           <Tree
             data={data}
             tree={tree}
-            levelOffset="md"
+            levelOffset={LEVEL_OFFSET}
             expandOnClick
+            classNames={{ subtree: classes.subtree }}
             renderNode={({ node, expanded: open, elementProps }) => {
               const entry = node.nodeProps?.entry as Entry;
-              const selected = entry.relPath === openPath;
+              const isFolder = entry.kind === 'folder';
               return (
                 <EntryMenu entry={entry} actions={props}>
-                  <Group
-                    gap={6}
-                    wrap="nowrap"
+                  <div
                     {...elementProps}
+                    className={`${elementProps.className} ${classes.row}`}
+                    data-kind={entry.kind}
+                    data-active={entry.relPath === openPath || undefined}
                     onClick={(event) => {
                       elementProps.onClick(event);
-                      if (entry.kind === 'note') props.onOpen(entry);
-                    }}
-                    style={{
-                      ...elementProps.style,
-                      cursor: 'pointer',
-                      borderRadius: 'var(--mantine-radius-sm)',
-                      padding: '3px 6px',
-                      background: selected ? 'var(--mantine-color-default-hover)' : undefined,
+                      if (!isFolder) props.onOpen(entry);
                     }}
                   >
-                    {entry.kind === 'folder' ? (
-                      <>
-                        <ChevronIcon open={open} />
-                        <FolderIcon />
-                      </>
-                    ) : (
-                      <>
-                        <span style={{ width: 14, flexShrink: 0 }} />
-                        <NoteIcon />
-                      </>
+                    {isFolder && (
+                      <span className={classes.folderIcon}>
+                        {open ? <FolderOpenIcon size={17} /> : <FolderIcon size={17} />}
+                      </span>
                     )}
                     <Tooltip label={entry.name} openDelay={600} withinPortal>
-                      <Text size="sm" truncate="end" style={{ flex: 1, minWidth: 0 }}>
-                        {node.label}
-                      </Text>
+                      <span className={classes.label}>{node.label}</span>
                     </Tooltip>
                     {entry.flags?.map((flag) => (
                       <Badge key={flag} size="xs" variant="light" color="gray" tt="none">
                         {FLAG_LABELS[flag]}
                       </Badge>
                     ))}
-                  </Group>
+                  </div>
                 </EntryMenu>
               );
             }}
@@ -176,6 +173,29 @@ export function Sidebar(props: Props) {
         )}
       </ScrollArea>
     </Stack>
+  );
+}
+
+/** The actions on one note or folder, shared by the tree's context menu and the title menu. */
+export function EntryMenuItems({ entry, actions }: { entry: Entry; actions: EntryActions }) {
+  return (
+    <>
+      {entry.kind === 'folder' && (
+        <>
+          <Menu.Item onClick={() => actions.onNewNote(entry.relPath)}>New note here</Menu.Item>
+          <Menu.Item onClick={() => actions.onNewFolder(entry.relPath)}>New folder here</Menu.Item>
+          <Menu.Divider />
+        </>
+      )}
+      <Menu.Item onClick={() => actions.onRename(entry)}>Rename…</Menu.Item>
+      <Menu.Item onClick={() => actions.onMove(entry)}>Move…</Menu.Item>
+      <Menu.Item onClick={() => actions.onReveal(entry.relPath)}>Reveal in Finder</Menu.Item>
+      <Menu.Item onClick={() => actions.onOpenInDefaultApp(entry)}>Open in default app</Menu.Item>
+      <Menu.Divider />
+      <Menu.Item color="red" onClick={() => actions.onTrash(entry)}>
+        Move to Trash
+      </Menu.Item>
+    </>
   );
 }
 
@@ -188,28 +208,11 @@ function EntryMenu({
   actions: EntryActions;
   children: React.ReactElement;
 }) {
-  const isFolder = entry.kind === 'folder';
   return (
     <Menu withinPortal position="bottom-start" shadow="md" width={200}>
       <Menu.ContextMenu>{children}</Menu.ContextMenu>
       <Menu.Dropdown>
-        {isFolder && (
-          <>
-            <Menu.Item onClick={() => actions.onNewNote(entry.relPath)}>New note here</Menu.Item>
-            <Menu.Item onClick={() => actions.onNewFolder(entry.relPath)}>
-              New folder here
-            </Menu.Item>
-            <Menu.Divider />
-          </>
-        )}
-        <Menu.Item onClick={() => actions.onRename(entry)}>Rename…</Menu.Item>
-        <Menu.Item onClick={() => actions.onMove(entry)}>Move…</Menu.Item>
-        <Menu.Item onClick={() => actions.onReveal(entry.relPath)}>Reveal in Finder</Menu.Item>
-        <Menu.Item onClick={() => actions.onOpenInDefaultApp(entry)}>Open in default app</Menu.Item>
-        <Menu.Divider />
-        <Menu.Item color="red" onClick={() => actions.onTrash(entry)}>
-          Move to Trash
-        </Menu.Item>
+        <EntryMenuItems entry={entry} actions={actions} />
       </Menu.Dropdown>
     </Menu>
   );

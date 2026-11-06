@@ -1,18 +1,8 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Textarea,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Box, Button, Group, Loader, Stack, Text, Textarea, Tooltip } from '@mantine/core';
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { type Entry, type NoteError, readNote, toNoteError, writeNote } from './api';
 import { errorTitle } from './errors';
+import classes from './NoteEditor.module.css';
 import { NotesErrorNotice } from './NotesErrorNotice';
 
 /** How long typing must pause before the note is saved. */
@@ -40,8 +30,6 @@ interface Props {
   ref: React.Ref<NoteEditorHandle>;
   /** Entries the editor created or changed (after a save: new title, recreated folders). */
   onEntries: (entries: Entry[]) => void;
-  /** Close after saving any pending edit. */
-  onClose: () => void;
   /** Close without saving (the user chose to). */
   onDiscard: () => void;
 }
@@ -51,14 +39,7 @@ interface Props {
  * (with the revision it started from) after a pause in typing, and before the note is closed,
  * another note is opened, or the app quits.
  */
-export function NoteEditor({
-  relPath: initialPath,
-  entry,
-  ref,
-  onEntries,
-  onClose,
-  onDiscard,
-}: Props) {
+export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDiscard }: Props) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<NoteError | null>(null);
@@ -298,144 +279,141 @@ export function NoteEditor({
   else status = 'Saved';
 
   return (
-    <Stack gap="sm" h="100%" p="md">
-      <Group justify="space-between" wrap="nowrap" align="flex-start">
-        <Stack gap={0} style={{ minWidth: 0 }}>
-          <Title order={4} lineClamp={1}>
-            {title}
-          </Title>
-          <Text size="xs" c="dimmed" truncate="start" title={path}>
-            {path}
+    <div className={classes.pane}>
+      <div className={classes.status}>
+        <Tooltip label={saveError?.message} disabled={!saveError} multiline w={260}>
+          <Text
+            size="xs"
+            c={saveError || banner ? 'red' : 'var(--rb-text-faint)'}
+            aria-live="polite"
+          >
+            {status}
           </Text>
-        </Stack>
-        <Group gap="xs" wrap="nowrap">
-          <Tooltip label={saveError?.message} disabled={!saveError} multiline w={260}>
-            <Text size="xs" c={saveError || banner ? 'red' : 'dimmed'} aria-live="polite">
-              {status}
-            </Text>
-          </Tooltip>
-          {saveError && !banner && (
-            <Button size="compact-xs" variant="default" onClick={() => void save()}>
-              Retry
-            </Button>
-          )}
-          <Button size="compact-xs" variant="subtle" onClick={onClose}>
-            Close
+        </Tooltip>
+        {saveError && !banner && (
+          <Button size="compact-xs" variant="default" onClick={() => void save()}>
+            Retry
           </Button>
-        </Group>
-      </Group>
+        )}
+      </div>
 
-      {banner?.kind === 'changed' && (
-        <Alert color="yellow" variant="light" title="This note changed on disk.">
-          <Stack gap="xs">
-            <Text size="sm">
-              Another app saved a new version while you had unsaved edits here. Choose which to
-              keep.
-            </Text>
-            <Group gap="xs">
-              <Button size="xs" onClick={() => void keepMine()}>
-                Keep mine
-              </Button>
-              <Button size="xs" variant="default" onClick={loadDisk}>
-                Load disk version
-              </Button>
-              <Button size="xs" variant="subtle" onClick={() => setShowBoth((v) => !v)}>
-                {showBoth ? 'Hide disk version' : 'Show both'}
-              </Button>
-            </Group>
-          </Stack>
-        </Alert>
-      )}
-      {banner?.kind === 'deleted' && (
-        <Alert color="red" variant="light" title="This note was deleted on disk.">
-          <Stack gap="xs">
-            <Text size="sm">
-              It was deleted or moved out of your notes folder by another app. Your text is still
-              here: you can save it again at the same place, or close it.
-            </Text>
-            <Group gap="xs">
-              <Button size="xs" onClick={() => void recreate()}>
-                Recreate from my copy
-              </Button>
-              <Button size="xs" variant="default" color="red" onClick={onDiscard}>
-                Close
-              </Button>
-            </Group>
-          </Stack>
-        </Alert>
-      )}
-      {banner?.kind === 'unreadable' && (
-        <Alert color="red" variant="light" title="This note changed on disk.">
-          <Stack gap="xs">
-            <Text size="sm">
-              Readback can’t read the new version, so your edits here aren’t saved.{' '}
-              {banner.error.message}
-            </Text>
-            <Group gap="xs">
-              <Button
-                size="xs"
-                variant="default"
-                onClick={() => {
-                  setBanner(null);
-                  void checkDisk();
-                }}
-              >
-                Check again
-              </Button>
-              <Button size="xs" variant="default" color="red" onClick={onDiscard}>
-                Close
-              </Button>
-            </Group>
-          </Stack>
-        </Alert>
-      )}
-
-      {loading && (
-        <Box py="xl" ta="center">
-          <Loader size="sm" />
-        </Box>
-      )}
-      {loadError && <NotesErrorNotice error={loadError} onRetry={retryLoad} />}
-
-      {!loading && !loadError && (
-        <Group gap="sm" align="stretch" wrap="nowrap" style={{ flex: 1, minHeight: 0 }}>
-          <Textarea
-            ref={textareaRef}
-            aria-label="Note text"
-            value={text}
-            onChange={(event) => onChange(event.currentTarget.value)}
-            onBlur={() => {
-              if (isDirty() && !bannerRef.current) {
-                cancelTimer();
-                void save();
-              }
-            }}
-            spellCheck
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
-            styles={{
-              wrapper: { flex: 1, display: 'flex' },
-              input: { flex: 1, resize: 'none', fontSize: 'var(--mantine-font-size-sm)' },
-            }}
-          />
-          {showBoth && banner?.kind === 'changed' && (
-            <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-              <Text size="xs" c="dimmed">
-                On disk (read-only)
-              </Text>
-              <Textarea
-                aria-label="Disk version"
-                value={banner.content}
-                readOnly
-                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-                styles={{
-                  wrapper: { flex: 1, display: 'flex' },
-                  input: { flex: 1, resize: 'none', fontSize: 'var(--mantine-font-size-sm)' },
-                }}
-              />
-            </Stack>
+      <div className={classes.scroller}>
+        <Stack
+          gap="md"
+          className={classes.column}
+          data-wide={(showBoth && banner?.kind === 'changed') || undefined}
+        >
+          {banner?.kind === 'changed' && (
+            <Alert color="yellow" variant="light" title="This note changed on disk.">
+              <Stack gap="xs">
+                <Text size="sm">
+                  Another app saved a new version while you had unsaved edits here. Choose which to
+                  keep.
+                </Text>
+                <Group gap="xs">
+                  <Button size="xs" onClick={() => void keepMine()}>
+                    Keep mine
+                  </Button>
+                  <Button size="xs" variant="default" onClick={loadDisk}>
+                    Load disk version
+                  </Button>
+                  <Button size="xs" variant="subtle" onClick={() => setShowBoth((v) => !v)}>
+                    {showBoth ? 'Hide disk version' : 'Show both'}
+                  </Button>
+                </Group>
+              </Stack>
+            </Alert>
           )}
-        </Group>
-      )}
-    </Stack>
+          {banner?.kind === 'deleted' && (
+            <Alert color="red" variant="light" title="This note was deleted on disk.">
+              <Stack gap="xs">
+                <Text size="sm">
+                  It was deleted or moved out of your notes folder by another app. Your text is
+                  still here: you can save it again at the same place, or close it.
+                </Text>
+                <Group gap="xs">
+                  <Button size="xs" onClick={() => void recreate()}>
+                    Recreate from my copy
+                  </Button>
+                  <Button size="xs" variant="default" color="red" onClick={onDiscard}>
+                    Close
+                  </Button>
+                </Group>
+              </Stack>
+            </Alert>
+          )}
+          {banner?.kind === 'unreadable' && (
+            <Alert color="red" variant="light" title="This note changed on disk.">
+              <Stack gap="xs">
+                <Text size="sm">
+                  Readback can’t read the new version, so your edits here aren’t saved.{' '}
+                  {banner.error.message}
+                </Text>
+                <Group gap="xs">
+                  <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => {
+                      setBanner(null);
+                      void checkDisk();
+                    }}
+                  >
+                    Check again
+                  </Button>
+                  <Button size="xs" variant="default" color="red" onClick={onDiscard}>
+                    Close
+                  </Button>
+                </Group>
+              </Stack>
+            </Alert>
+          )}
+
+          {loading && (
+            <Box py="xl" ta="center">
+              <Loader size="sm" />
+            </Box>
+          )}
+          {loadError && <NotesErrorNotice error={loadError} onRetry={retryLoad} />}
+
+          {!loading && !loadError && (
+            <Group gap="xl" align="flex-start" wrap="nowrap">
+              <Textarea
+                ref={textareaRef}
+                aria-label={`Text of ${title}`}
+                value={text}
+                onChange={(event) => onChange(event.currentTarget.value)}
+                onBlur={() => {
+                  if (isDirty() && !bannerRef.current) {
+                    cancelTimer();
+                    void save();
+                  }
+                }}
+                autosize
+                minRows={12}
+                spellCheck
+                variant="unstyled"
+                style={{ flex: 1, minWidth: 0 }}
+                classNames={{ input: classes.input }}
+              />
+              {showBoth && banner?.kind === 'changed' && (
+                <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                  <Text size="xs" c="dimmed">
+                    On disk (read-only)
+                  </Text>
+                  <Textarea
+                    aria-label="Disk version"
+                    value={banner.content}
+                    readOnly
+                    autosize
+                    variant="unstyled"
+                    classNames={{ input: classes.input }}
+                  />
+                </Stack>
+              )}
+            </Group>
+          )}
+        </Stack>
+      </div>
+    </div>
   );
 }

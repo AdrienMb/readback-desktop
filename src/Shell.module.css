@@ -1,0 +1,147 @@
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--rb-chrome);
+  user-select: none;
+}
+
+/* Title bar. The window's own title bar is hidden; macOS draws the traffic lights over it. */
+.titlebar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 40px;
+}
+
+.titlebarLeft {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+  /* Room for the traffic lights. */
+  padding-left: 84px;
+  padding-right: 10px;
+}
+
+.titlebarDivider {
+  width: 1px;
+  height: 18px;
+  flex-shrink: 0;
+  background: var(--rb-border);
+}
+
+.titlebarTitle {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding-left: 10px;
+}
+
+.toolButton {
+  color: var(--rb-icon);
+}
+
+.toolButton:hover {
+  background: var(--rb-hover);
+}
+
+.titleButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: var(--rb-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.titleButton:hover {
+  background: var(--rb-hover);
+}
+
+.titleText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleChevron {
+  flex-shrink: 0;
+  color: var(--rb-text-faint);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Left rail: home (notes) and settings. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding-top: 14px;
+}
+
+.railButton {
+  color: var(--rb-icon);
+  border-radius: 7px;
+}
+
+.railButton:hover {
+  background: var(--rb-hover);
+}
+
+.railButton[data-active] {
+  background: var(--rb-rail-active);
+  color: var(--rb-rail-active-icon);
+}
+
+.card {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  margin: 0 6px 6px 0;
+  border-radius: 10px;
+  background: var(--rb-card);
+  box-shadow: 0 0 0 1px var(--rb-border);
+  overflow: hidden;
+  user-select: text;
+}
+
+.sidebar {
+  position: relative;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 0;
+  border-right: 1px solid var(--rb-border);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

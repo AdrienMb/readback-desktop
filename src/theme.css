@@ -1,0 +1,38 @@
+/* Window colours. The chrome (title bar, rail) sits behind a white content card. */
+:root {
+  --rb-chrome: #f2f4f4;
+  --rb-card: #ffffff;
+  --rb-border: #e6e9ea;
+  --rb-hover: #eef1f2;
+  --rb-selected: #eaeef0;
+  --rb-text: #2b3236;
+  --rb-text-body: #4a555b;
+  --rb-text-muted: #66727a;
+  --rb-text-faint: #8a959c;
+  --rb-icon: #4d585e;
+  --rb-rail-active: #e3e8ea;
+  --rb-rail-active-icon: #1f3a4a;
+  --rb-guide: #e1e5e7;
+}
+
+[data-mantine-color-scheme='dark'] {
+  --rb-chrome: #1b1d1e;
+  --rb-card: #242628;
+  --rb-border: #34383a;
+  --rb-hover: #2e3133;
+  --rb-selected: #34383b;
+  --rb-text: #e3e6e8;
+  --rb-text-body: #c9d0d4;
+  --rb-text-muted: #a7b0b5;
+  --rb-text-faint: #7f898f;
+  --rb-icon: #b3bcc1;
+  --rb-rail-active: #33373a;
+  --rb-rail-active-icon: #e3e6e8;
+  --rb-guide: #3a3e41;
+}
+
+html,
+body {
+  background: var(--rb-chrome);
+  overscroll-behavior: none;
+}

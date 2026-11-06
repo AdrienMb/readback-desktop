@@ -1,0 +1,104 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 12px 8px 14px;
+}
+
+.vaultButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  color: var(--rb-text);
+  font-size: 15px;
+  font-weight: 450;
+}
+
+.vaultButton:hover {
+  background: var(--rb-hover);
+}
+
+.vaultName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vaultChevron {
+  flex-shrink: 0;
+  color: var(--rb-text-faint);
+}
+
+.iconButton {
+  color: var(--rb-icon);
+}
+
+.iconButton:hover {
+  background: var(--rb-hover);
+}
+
+.hint {
+  padding: 4px 14px;
+  font-size: 12px;
+  color: var(--rb-text-faint);
+}
+
+/* Tree. Rows are indented with a margin so the selection starts at the indent. */
+.subtree {
+  position: relative;
+}
+
+.subtree::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(var(--label-offset) + 9px);
+  border-left: 1px solid var(--rb-guide);
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  margin: 1px 0 1px var(--label-offset);
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: default;
+  color: var(--rb-text-muted);
+  font-size: 14px;
+}
+
+.row[data-kind='folder'] {
+  color: var(--rb-text);
+  padding-left: 6px;
+}
+
+.row:hover {
+  background: var(--rb-hover);
+}
+
+.row[data-active] {
+  background: var(--rb-selected);
+  color: var(--rb-text);
+}
+
+.folderIcon {
+  display: inline-flex;
+  color: var(--rb-icon);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -102,7 +102,7 @@ export function App() {
   }
   if (!session) {
     return (
-      <Center h="100vh">
+      <Center h="100%" py="xl">
         <Loader />
       </Center>
     );

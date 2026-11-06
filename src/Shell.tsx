@@ -1,4 +1,16 @@
-import { Alert, Box, Center, Container, Flex, Loader, Stack, Text } from '@mantine/core';
+import {
+  ActionIcon,
+  Alert,
+  Box,
+  Center,
+  Container,
+  Loader,
+  Menu,
+  Stack,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { App } from './App';
 import {
@@ -28,7 +40,8 @@ import {
 import { ConfirmDialog, MoveDialog, NameDialog } from './notes/EntryDialogs';
 import { NoteEditor, type NoteEditorHandle } from './notes/NoteEditor';
 import { NotesErrorNotice } from './notes/NotesErrorNotice';
-import { Sidebar } from './notes/Sidebar';
+import { ChevronDownIcon, GearIcon, HomeIcon, SidebarIcon } from './notes/icons';
+import { type EntryActions, EntryMenuItems, Sidebar } from './notes/Sidebar';
 import {
   type Entries,
   applyChanges,
@@ -39,6 +52,7 @@ import {
   toEntries,
 } from './notes/tree';
 import { Onboarding, VaultProblem } from './notes/VaultSetup';
+import classes from './Shell.module.css';
 
 type Dialog =
   | { type: 'new_note'; parent: string }
@@ -54,7 +68,8 @@ interface Confirm {
   resolve: (confirmed: boolean) => void;
 }
 
-const SIDEBAR_WIDTH = 280;
+const RAIL_WIDTH = 44;
+const SIDEBAR_WIDTH = 228;
 
 function remapExpanded(state: Record<string, boolean>, from: string, to: string) {
   const next: Record<string, boolean> = {};
@@ -62,7 +77,10 @@ function remapExpanded(state: Record<string, boolean>, from: string, to: string)
   return next;
 }
 
-/** The window: notes sidebar on the left, the open note (or ChatGPT) on the right. */
+/**
+ * The window: a title bar (sidebar toggle, open note's title), a rail (notes, settings) and a
+ * card holding the notes sidebar and the open note, or the settings (ChatGPT) panel.
+ */
 export function Shell() {
   const [vault, setVault] = useState<Vault | null>(null);
   const [vaultError, setVaultError] = useState<NoteError | null>(null);
@@ -73,7 +91,8 @@ export function Shell() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [docId, setDocId] = useState(0);
-  const [view, setView] = useState<'notes' | 'chatgpt'>('notes');
+  const [view, setView] = useState<'notes' | 'settings'>('notes');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -355,114 +374,205 @@ export function Shell() {
   const problem = vault && (vault.status === 'missing' || vault.status === 'denied');
   const openEntry = openPath ? entries.get(openPath) : undefined;
 
+  const entryActions: EntryActions = {
+    onOpen: (entry) => void openNote(entry),
+    onNewNote: (parent) => setDialog({ type: 'new_note', parent }),
+    onNewFolder: (parent) => setDialog({ type: 'new_folder', parent }),
+    onRename: (entry) => setDialog({ type: 'rename', entry }),
+    onMove: (entry) => setDialog({ type: 'move', entry }),
+    onTrash: (entry) => void trash(entry),
+    onReveal: (relPath) => void run(() => revealInFinder(relPath)),
+    onOpenInDefaultApp: (entry) =>
+      void run(async () => {
+        if (await saveIfAffected(entry)) await openInDefaultApp(entry.relPath);
+      }),
+  };
+
+  const showSidebar = view === 'notes' && sidebarOpen;
+  const noteTitle = openPath ? (openEntry?.title ?? openPath.split('/').pop() ?? '') : null;
+
   return (
-    <Flex h="100vh" style={{ overflow: 'hidden' }}>
-      <Box
-        w={SIDEBAR_WIDTH}
-        style={{ flexShrink: 0, borderRight: '1px solid var(--mantine-color-default-border)' }}
-      >
-        <Sidebar
-          vault={vault}
-          rootPath={ready ? rootPath : null}
-          entries={ready ? entries : new Map()}
-          openPath={openPath}
-          expanded={expanded}
-          onExpandedChange={setExpanded}
-          view={view}
-          onShowChatGpt={() => setView('chatgpt')}
-          onChangeVault={() => void switchVault(chooseVault, 'choose')}
-          changingVault={vaultBusy === 'choose'}
-          onOpen={(entry) => void openNote(entry)}
-          onNewNote={(parent) => setDialog({ type: 'new_note', parent })}
-          onNewFolder={(parent) => setDialog({ type: 'new_folder', parent })}
-          onRename={(entry) => setDialog({ type: 'rename', entry })}
-          onMove={(entry) => setDialog({ type: 'move', entry })}
-          onTrash={(entry) => void trash(entry)}
-          onReveal={(relPath) => void run(() => revealInFinder(relPath))}
-          onOpenInDefaultApp={(entry) =>
-            void run(async () => {
-              if (await saveIfAffected(entry)) await openInDefaultApp(entry.relPath);
-            })
-          }
-        />
-      </Box>
-
-      <Box style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-        {/* Kept mounted so the ChatGPT panel keeps its state while a note is open. */}
-        <Box display={view === 'chatgpt' ? 'block' : 'none'}>
-          <App />
-        </Box>
-
-        <Stack gap={0} h="100%" display={view === 'notes' ? 'flex' : 'none'}>
-          {(notice || actionError || problem || vaultError) && (
-            <Stack gap="xs" p="md" pb={0}>
-              {notice && (
-                <Alert color="gray" variant="light" withCloseButton onClose={() => setNotice(null)}>
-                  {notice}
-                </Alert>
-              )}
-              {actionError && (
-                <NotesErrorNotice error={actionError} onClose={() => setActionError(null)} />
-              )}
-              {problem && vault && (
-                <VaultProblem
-                  vault={vault}
-                  busy={vaultBusy !== null}
-                  error={vaultError}
-                  onLocate={() => void switchVault(chooseVault, 'choose')}
-                  onChooseAnother={() => void switchVault(chooseVault, 'choose')}
-                  onRetry={() => void refreshVault()}
-                />
-              )}
-              {vaultError && !problem && vault?.status !== 'not_set' && (
-                <NotesErrorNotice error={vaultError} onClose={() => setVaultError(null)} />
-              )}
-            </Stack>
+    <div className={classes.window}>
+      <header className={classes.titlebar} data-tauri-drag-region>
+        <div
+          className={classes.titlebarLeft}
+          style={showSidebar ? { width: RAIL_WIDTH + SIDEBAR_WIDTH } : undefined}
+          data-tauri-drag-region
+        >
+          {view === 'notes' && (
+            <Tooltip label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} openDelay={400}>
+              <ActionIcon
+                variant="subtle"
+                size={28}
+                className={classes.toolButton}
+                aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                onClick={() => setSidebarOpen((open) => !open)}
+              >
+                <SidebarIcon open={sidebarOpen} size={19} />
+              </ActionIcon>
+            </Tooltip>
           )}
-
-          {!vault && !vaultError && (
-            <Center h="100%">
-              <Loader />
-            </Center>
+        </div>
+        <div className={classes.titlebarDivider} data-tauri-drag-region />
+        <div className={classes.titlebarTitle} data-tauri-drag-region>
+          {view === 'settings' && (
+            <span className={classes.titleButton} data-tauri-drag-region>
+              Settings
+            </span>
           )}
+          {view === 'notes' && noteTitle !== null && openEntry && (
+            <Menu position="bottom-start" shadow="md" width={220} withinPortal>
+              <Menu.Target>
+                <UnstyledButton className={classes.titleButton} title={openPath ?? undefined}>
+                  <span className={classes.titleText}>{noteTitle}</span>
+                  <span className={classes.titleChevron}>
+                    <ChevronDownIcon size={16} />
+                  </span>
+                </UnstyledButton>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <EntryMenuItems entry={openEntry} actions={entryActions} />
+                <Menu.Divider />
+                <Menu.Item onClick={() => void closeNote()}>Close note</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
+          {view === 'notes' && noteTitle !== null && !openEntry && (
+            <span className={classes.titleButton} data-tauri-drag-region>
+              <span className={classes.titleText}>{noteTitle}</span>
+            </span>
+          )}
+        </div>
+      </header>
 
-          {vault?.status === 'not_set' && (
-            <Container size="sm" py="xl" w="100%">
-              <Onboarding
+      <div className={classes.body}>
+        <nav className={classes.rail} style={{ width: RAIL_WIDTH }} aria-label="Sections">
+          <Tooltip label="Notes" position="right" openDelay={400}>
+            <ActionIcon
+              variant="subtle"
+              size={30}
+              className={classes.railButton}
+              data-active={view === 'notes' || undefined}
+              aria-label="Notes"
+              aria-current={view === 'notes' ? 'page' : undefined}
+              onClick={() => setView('notes')}
+            >
+              <HomeIcon size={19} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Settings" position="right" openDelay={400}>
+            <ActionIcon
+              variant="subtle"
+              size={30}
+              className={classes.railButton}
+              data-active={view === 'settings' || undefined}
+              aria-label="Settings"
+              aria-current={view === 'settings' ? 'page' : undefined}
+              onClick={() => setView('settings')}
+            >
+              <GearIcon size={19} />
+            </ActionIcon>
+          </Tooltip>
+        </nav>
+
+        <main className={classes.card}>
+          {/* Kept mounted so the ChatGPT panel keeps its state while a note is open. */}
+          <Box className={classes.scroll} display={view === 'settings' ? 'block' : 'none'}>
+            <App />
+          </Box>
+
+          {showSidebar && (
+            <Box className={classes.sidebar} w={SIDEBAR_WIDTH}>
+              <Sidebar
                 vault={vault}
-                busy={vaultBusy}
-                error={vaultError}
-                onCreate={() => void switchVault(createDefaultVault, 'create')}
-                onChoose={() => void switchVault(chooseVault, 'choose')}
-              />
-            </Container>
-          )}
-
-          {openPath && (
-            <Box style={{ flex: 1, minHeight: 0 }}>
-              <NoteEditor
-                key={docId}
-                ref={editorRef}
-                relPath={openPath}
-                entry={openEntry}
-                onEntries={addEntries}
-                onClose={() => void closeNote()}
-                onDiscard={() => setOpen(null)}
+                rootPath={ready ? rootPath : null}
+                entries={ready ? entries : new Map()}
+                openPath={openPath}
+                expanded={expanded}
+                onExpandedChange={setExpanded}
+                onChangeVault={() => void switchVault(chooseVault, 'choose')}
+                {...entryActions}
               />
             </Box>
           )}
 
-          {ready && !openPath && (
-            <Center style={{ flex: 1 }} p="xl">
-              <Text c="dimmed" size="sm" ta="center">
-                Select a note, or create one with New note.
-                <br />
-                Changes you make in other apps show up here automatically.
-              </Text>
-            </Center>
-          )}
-        </Stack>
-      </Box>
+          <Stack gap={0} className={classes.content} display={view === 'notes' ? 'flex' : 'none'}>
+            {(notice || actionError || problem || vaultError) && (
+              <Stack gap="xs" p="md" pb={0}>
+                {notice && (
+                  <Alert
+                    color="gray"
+                    variant="light"
+                    withCloseButton
+                    onClose={() => setNotice(null)}
+                  >
+                    {notice}
+                  </Alert>
+                )}
+                {actionError && (
+                  <NotesErrorNotice error={actionError} onClose={() => setActionError(null)} />
+                )}
+                {problem && vault && (
+                  <VaultProblem
+                    vault={vault}
+                    busy={vaultBusy !== null}
+                    error={vaultError}
+                    onLocate={() => void switchVault(chooseVault, 'choose')}
+                    onChooseAnother={() => void switchVault(chooseVault, 'choose')}
+                    onRetry={() => void refreshVault()}
+                  />
+                )}
+                {vaultError && !problem && vault?.status !== 'not_set' && (
+                  <NotesErrorNotice error={vaultError} onClose={() => setVaultError(null)} />
+                )}
+              </Stack>
+            )}
+
+            {!vault && !vaultError && (
+              <Center h="100%">
+                <Loader />
+              </Center>
+            )}
+
+            {vault?.status === 'not_set' && (
+              <Box className={classes.scroll}>
+                <Container size="sm" py="xl" w="100%">
+                  <Onboarding
+                    vault={vault}
+                    busy={vaultBusy}
+                    error={vaultError}
+                    onCreate={() => void switchVault(createDefaultVault, 'create')}
+                    onChoose={() => void switchVault(chooseVault, 'choose')}
+                  />
+                </Container>
+              </Box>
+            )}
+
+            {openPath && (
+              <Box style={{ flex: 1, minHeight: 0 }}>
+                <NoteEditor
+                  key={docId}
+                  ref={editorRef}
+                  relPath={openPath}
+                  entry={openEntry}
+                  onEntries={addEntries}
+                  onDiscard={() => setOpen(null)}
+                />
+              </Box>
+            )}
+
+            {ready && !openPath && (
+              <Center style={{ flex: 1 }} p="xl">
+                <Text c="dimmed" size="sm" ta="center">
+                  Select a note, or create one with New note.
+                  <br />
+                  Changes you make in other apps show up here automatically.
+                </Text>
+              </Center>
+            )}
+          </Stack>
+        </main>
+      </div>
 
       {(dialog?.type === 'new_note' || dialog?.type === 'new_folder') && (
         <NameDialog
@@ -514,6 +624,6 @@ export function Shell() {
           onCancel={() => confirm.resolve(false)}
         />
       )}
-    </Flex>
+    </div>
   );
 }

@@ -14,10 +14,13 @@
       {
         "label": "main",
         "title": "Readback",
-        "width": 900,
-        "height": 720,
-        "minWidth": 560,
-        "minHeight": 480
+        "width": 1000,
+        "height": 640,
+        "minWidth": 640,
+        "minHeight": 480,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 16, "y": 21 }
       }
     ],
     "security": {
