@@ -1,0 +1,38 @@
+[package]
+name = "readback-desktop"
+version = "0.1.0"
+description = "Readback: quiz yourself on your own notes"
+authors = ["Readback contributors"]
+license = "MIT"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+[lib]
+# The `_lib` suffix keeps the lib name distinct from the bin name
+# (see https://github.com/rust-lang/cargo/issues/8519).
+name = "readback_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-opener = "2.7.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# See https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

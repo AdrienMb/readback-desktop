@@ -1,0 +1,6 @@
+dist
+node_modules
+.yarn
+src-tauri/target
+src-tauri/gen
+yarn.lock
