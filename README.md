@@ -47,7 +47,7 @@ cargo test
 - `src/`: React + Mantine frontend. It only displays data and calls Tauri commands.
 - `src-tauri/`: Rust backend. Sign-in, credential storage and ChatGPT requests live here.
 
-See [CLAUDE.md](CLAUDE.md) for the architecture rules.
+See [AGENTS.md](AGENTS.md) for the architecture rules.
 
 ## License
 
