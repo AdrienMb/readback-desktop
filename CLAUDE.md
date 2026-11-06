@@ -12,8 +12,18 @@ src/                     React 19 + Mantine 9 frontend (webview). Display only.
   App.tsx                the single window
 src-tauri/               Rust backend (Tauri 2)
   src/lib.rs             Tauri builder, plugins, command registration
-  src/chatgpt/           SIWC runtime (Phase 2): host_id, oauth, id_token, store, refresh,
-                         inference, errors, commands
+  src/chatgpt/           SIWC runtime
+    mod.rs               ChatGpt service: sign-in, sign-out, refresh orchestration, prompts
+    commands.rs          Tauri command surface (display data only)
+    oauth.rs             discovery, PKCE/state/nonce, authorize URL, loopback, code exchange,
+                         token parsing, revocation
+    id_token.rs          JWKS fetch + ID token validation
+    refresh.rs           refresh decision + rotating refresh request
+    inference.rs         model listing, SSE parser, streaming Responses call
+    store.rs             profile JSON (0600, atomic) + Keychain vault
+    host_id.rs           ext_agent_host_id (urn:uuid, per installation)
+    secret.rs            `Secret` newtype (redacted, zeroized, not serializable)
+    errors.rs            typed errors with user-facing messages
   capabilities/          webview permissions (core only, no opener)
   tauri.conf.json        app config, CSP, macOS bundle
 ```
