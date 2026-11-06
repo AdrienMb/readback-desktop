@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Readback keeps your notes as Markdown files in a folder you choose, such as Documents/Readback.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Readback reads and saves your notes in the folder you chose on your Desktop.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Readback reads and saves your notes in the folder you chose in Downloads.</string>
+</dict>
+</plist>

@@ -2,20 +2,26 @@
 
 Open-source macOS app (Tauri 2 + React) that will quiz users on their own notes. The current
 work is a **spike**: prove Sign in with ChatGPT (SIWC) end to end. A user signs in with their
-ChatGPT plan (no API key), sends a prompt, and sees the streamed reply.
+ChatGPT plan (no API key), sends a prompt, and sees the streamed reply. Alongside it, local notes:
+plain folders and Markdown files in a user-visible folder (the vault), edited live.
 
 ## Layout
 
 ```
 src/                     React 19 + Mantine 9 frontend (webview). Display only.
   main.tsx               MantineProvider + root
-  App.tsx                the single window: signed out / connected / reauth states
+  Shell.tsx              the window: notes sidebar + open note, or the ChatGPT panel (App)
+  App.tsx                ChatGPT panel: signed out / connected / reauth states
   api.ts                 typed wrappers for the Tauri commands (display data only)
   components/            ContinueWithChatGPT (official button), ManageUsageButton, PromptPanel,
                          ErrorNotice, WelcomeModal
+  notes/                 notes UI: api.ts (commands + vault:// events), tree.ts (pure tree
+                         helpers), Sidebar, NoteEditor (autosave, on-disk change banners),
+                         VaultSetup (onboarding / missing), EntryDialogs, NotesErrorNotice
   assets/                official ChatGPT logos (from developers.openai.com)
 src-tauri/               Rust backend (Tauri 2)
   src/lib.rs             Tauri builder, plugins, command registration
+  src/quit.rs            ⌘Q / window close ask the webview to save first (app://quit-requested)
   src/chatgpt/           SIWC runtime
     mod.rs               ChatGpt service: sign-in, sign-out, refresh orchestration, prompts
     commands.rs          Tauri command surface (display data only)
@@ -28,8 +34,20 @@ src-tauri/               Rust backend (Tauri 2)
     host_id.rs           ext_agent_host_id (urn:uuid, per installation)
     secret.rs            `Secret` newtype (redacted, zeroized, not serializable)
     errors.rs            typed errors with user-facing messages
-  capabilities/          webview permissions (core only, no opener)
+  src/notes/             local notes (the vault)
+    mod.rs               Notes service: vault choice, read/write, create/rename/move/trash
+    commands.rs          Tauri command surface (vault-relative paths in, display data out)
+    config.rs            settings.json in the app data dir (vault path) + vault status
+    paths.rs             resolve/validate relative paths, NFC + case folding, name sanitising
+    scan.rs              walk the vault, describe entries (title, size, flags)
+    note.rs              UTF-8/BOM/CRLF handling, title (frontmatter, heading, file name), revision
+    write.rs             conflict-checked save, create note/folder
+    macos.rs             Foundation calls: Trash, atomic replace, no-overwrite move
+    index.rs             what the app last saw (paths, titles, hashes; no content)
+    watcher.rs           debounced FSEvents -> reconcile against index -> vault://changed
+  capabilities/          webview permissions (core only, no opener, dialog or fs)
   tauri.conf.json        app config, CSP, macOS bundle
+  Info.plist             privacy usage strings (Documents, Desktop, Downloads)
 ```
 
 ## Commands
@@ -53,14 +71,24 @@ cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings &
 - Secrets go in the macOS Keychain (one item per registration). Non-secret data (host ID,
   issued client ID, email, subject, scopes, expiry) goes in JSON in the app data dir.
 - Sign-in opens the **system browser** (opener plugin, from Rust). Never embed the auth page in
-  a webview. The webview has no opener permission; Rust opens only fixed, validated URLs.
+  a webview. The webview has no opener permission; Rust opens only fixed, validated URLs and
+  (reveal / open in default app) notes and folders resolved inside the vault.
 - Loopback redirect is `http://127.0.0.1:<port>/auth/callback`. Never `localhost`.
 - Send `login_hint`, not `id_token_hint`: `/usr/bin/open` exposes the URL in process arguments.
 - Only the documented SIWC flow. No ChatGPT `backend-api`, no cookies, no Codex auth file, no
   API-key path, no other provider, no telemetry or crash reporting.
 - Never invent endpoints, parameters or model IDs. Models come from `GET /v1/models`.
 - Usage-limit and other non-retryable plan errors are never retried in a loop.
-- No notes, quizzes or spaced repetition yet.
+- **All note file access is in Rust.** The webview has no `fs` or `dialog` permission and sends
+  only vault-relative paths, which `notes/paths.rs` resolves and confines to the vault (no `..`,
+  no absolute paths, no hidden segments, no symbolic links).
+- **The files are the source of truth.** No database, cache or copy of note content outlives the
+  open editor. Never write frontmatter, IDs or metadata into notes; never create files in the
+  vault other than the notes and folders the user asks for.
+- **Never destroy user data.** No hard deletes (Move to Trash only). Never overwrite a file that
+  changed on disk since it was read (`base_revision` check). Never rename or move onto an
+  existing name. Never touch files that aren't `.md` notes (they move with their folder).
+- No quizzes, spaced repetition, search, index, tags, wiki-links or Markdown preview yet.
 
 ## Sources of truth
 
