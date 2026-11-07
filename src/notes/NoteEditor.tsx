@@ -1,7 +1,9 @@
-import { Alert, Box, Button, Group, Loader, Stack, Text, Textarea, Tooltip } from '@mantine/core';
+import { Alert, Box, Button, Group, Loader, Stack, Text, Tooltip } from '@mantine/core';
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { type Entry, type NoteError, readNote, toNoteError, writeNote } from './api';
 import { errorTitle } from './errors';
+import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor';
+import { MarkdownView } from './MarkdownView';
 import classes from './NoteEditor.module.css';
 import { NotesErrorNotice } from './NotesErrorNotice';
 
@@ -19,6 +21,8 @@ export interface NoteEditorHandle {
   diskDeleted: () => void;
 }
 
+export type NoteMode = 'view' | 'edit';
+
 type Banner =
   | { kind: 'changed'; revision: string; content: string }
   | { kind: 'unreadable'; error: NoteError }
@@ -27,6 +31,8 @@ type Banner =
 interface Props {
   relPath: string;
   entry: Entry | undefined;
+  /** Rendered Markdown, or the CodeMirror editor. */
+  mode: NoteMode;
   ref: React.Ref<NoteEditorHandle>;
   /** Entries the editor created or changed (after a save: new title, recreated folders). */
   onEntries: (entries: Entry[]) => void;
@@ -39,7 +45,14 @@ interface Props {
  * (with the revision it started from) after a pause in typing, and before the note is closed,
  * another note is opened, or the app quits.
  */
-export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDiscard }: Props) {
+export function NoteEditor({
+  relPath: initialPath,
+  entry,
+  mode,
+  ref,
+  onEntries,
+  onDiscard,
+}: Props) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<NoteError | null>(null);
@@ -60,7 +73,8 @@ export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDisc
   const bannerRef = useRef<Banner | null>(null);
   const savingRef = useRef<Promise<void> | null>(null);
   const timerRef = useRef<number | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<MarkdownEditorHandle>(null);
+  const modeRef = useRef(mode);
   const onEntriesRef = useRef(onEntries);
   useEffect(() => {
     onEntriesRef.current = onEntries;
@@ -79,20 +93,10 @@ export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDisc
     if (!next) setShowBoth(false);
   }, []);
 
-  /** Replaces the editor text (from disk), keeping the cursor where it was. */
+  /** Replaces the editor text (from disk). The editor maps the cursor through the change. */
   const replaceText = useCallback((next: string) => {
-    const area = textareaRef.current;
-    const selection = area ? [area.selectionStart, area.selectionEnd] : null;
     textRef.current = next;
     setText(next);
-    if (area && selection && document.activeElement === area) {
-      requestAnimationFrame(() => {
-        area.setSelectionRange(
-          Math.min(selection[0], next.length),
-          Math.min(selection[1], next.length),
-        );
-      });
-    }
   }, []);
 
   const cancelTimer = () => {
@@ -196,6 +200,18 @@ export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDisc
     return cancelTimer;
   }, [load]);
 
+  // Switching to view saves any pending edit; switching to edit puts the cursor in the note.
+  useEffect(() => {
+    if (modeRef.current === mode) return;
+    modeRef.current = mode;
+    if (mode === 'edit') {
+      editorRef.current?.focus();
+    } else if (isDirty() && !bannerRef.current) {
+      cancelTimer();
+      void save();
+    }
+  }, [mode, save]);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -281,19 +297,17 @@ export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDisc
   return (
     <div className={classes.pane}>
       <div className={classes.status}>
-        <Tooltip label={saveError?.message} disabled={!saveError} multiline w={260}>
-          <Text
-            size="xs"
-            c={saveError || banner ? 'red' : 'var(--rb-text-faint)'}
-            aria-live="polite"
-          >
-            {status}
-          </Text>
-        </Tooltip>
-        {saveError && !banner && (
-          <Button size="compact-xs" variant="default" onClick={() => void save()}>
-            Retry
-          </Button>
+        {saveError && (
+          <>
+            <Tooltip label={saveError.message} disabled={!saveError} multiline w={260}>
+              <Text size="xs" c={'red'} aria-live="polite">
+                {status}
+              </Text>
+            </Tooltip>
+            <Button size="compact-xs" variant="default" onClick={() => void save()}>
+              Retry
+            </Button>
+          </>
         )}
       </div>
 
@@ -377,37 +391,35 @@ export function NoteEditor({ relPath: initialPath, entry, ref, onEntries, onDisc
 
           {!loading && !loadError && (
             <Group gap="xl" align="flex-start" wrap="nowrap">
-              <Textarea
-                ref={textareaRef}
-                aria-label={`Text of ${title}`}
-                value={text}
-                onChange={(event) => onChange(event.currentTarget.value)}
-                onBlur={() => {
-                  if (isDirty() && !bannerRef.current) {
-                    cancelTimer();
-                    void save();
-                  }
-                }}
-                autosize
-                minRows={12}
-                spellCheck
-                variant="unstyled"
-                style={{ flex: 1, minWidth: 0 }}
-                classNames={{ input: classes.input }}
-              />
+              <Box style={{ flex: 1, minWidth: 0 }}>
+                {/* Kept mounted in view mode so undo history and the cursor survive a toggle. */}
+                <Box display={mode === 'edit' ? 'block' : 'none'}>
+                  <MarkdownEditor
+                    ref={editorRef}
+                    ariaLabel={`Text of ${title}`}
+                    placeholder="Start writing…"
+                    value={text}
+                    onChange={onChange}
+                    onBlur={() => {
+                      if (isDirty() && !bannerRef.current) {
+                        cancelTimer();
+                        void save();
+                      }
+                    }}
+                  />
+                </Box>
+                {mode === 'view' && <MarkdownView content={text} ariaLabel={title} />}
+              </Box>
               {showBoth && banner?.kind === 'changed' && (
                 <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
                   <Text size="xs" c="dimmed">
                     On disk (read-only)
                   </Text>
-                  <Textarea
-                    aria-label="Disk version"
-                    value={banner.content}
-                    readOnly
-                    autosize
-                    variant="unstyled"
-                    classNames={{ input: classes.input }}
-                  />
+                  {mode === 'edit' ? (
+                    <MarkdownEditor readOnly ariaLabel="Disk version" value={banner.content} />
+                  ) : (
+                    <MarkdownView content={banner.content} ariaLabel="Disk version" muted />
+                  )}
                 </Stack>
               )}
             </Group>

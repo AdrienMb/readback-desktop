@@ -3,7 +3,8 @@
 Open-source macOS app (Tauri 2 + React) that will quiz users on their own notes. The current
 work is a **spike**: prove Sign in with ChatGPT (SIWC) end to end. A user signs in with their
 ChatGPT plan (no API key), sends a prompt, and sees the streamed reply. Alongside it, local notes:
-plain folders and Markdown files in a user-visible folder (the vault), edited live.
+plain folders and Markdown files in a user-visible folder (the vault), edited live in CodeMirror
+or read rendered (react-markdown, GFM), toggled from the title bar (⌘E).
 
 ## Layout
 
@@ -16,8 +17,10 @@ src/                     React 19 + Mantine 9 frontend (webview). Display only.
   components/            ContinueWithChatGPT (official button), ManageUsageButton, PromptPanel,
                          ErrorNotice, WelcomeModal
   notes/                 notes UI: api.ts (commands + vault:// events), tree.ts (pure tree
-                         helpers), Sidebar, NoteEditor (autosave, on-disk change banners),
-                         VaultSetup (onboarding / missing), EntryDialogs, NotesErrorNotice
+                         helpers), Sidebar, NoteEditor (autosave, on-disk change banners,
+                         view/edit mode), MarkdownEditor (CodeMirror 6), MarkdownView
+                         (react-markdown + GFM, links don't navigate), VaultSetup (onboarding /
+                         missing), EntryDialogs, NotesErrorNotice
   assets/                official ChatGPT logos (from developers.openai.com)
 src-tauri/               Rust backend (Tauri 2)
   src/lib.rs             Tauri builder, plugins, command registration
@@ -88,7 +91,9 @@ cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings &
 - **Never destroy user data.** No hard deletes (Move to Trash only). Never overwrite a file that
   changed on disk since it was read (`base_revision` check). Never rename or move onto an
   existing name. Never touch files that aren't `.md` notes (they move with their folder).
-- No quizzes, spaced repetition, search, index, tags, wiki-links or Markdown preview yet.
+- View mode renders Markdown without raw HTML. Links never navigate the webview and images are
+  not loaded (the CSP and the no-opener rule stand).
+- No quizzes, spaced repetition, search, index, tags or wiki-links yet.
 
 ## Sources of truth
 

@@ -1,0 +1,48 @@
+.root {
+  color: var(--rb-text-body);
+  font-size: 14.5px;
+  line-height: 1.7;
+  letter-spacing: 0.005em;
+  overflow-wrap: anywhere;
+  min-height: 280px;
+}
+
+.root[data-muted] {
+  color: var(--rb-text-faint);
+}
+
+.root :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--rb-text);
+  font-weight: 650;
+}
+
+.root[data-muted] :where(h1, h2, h3, h4, h5, h6) {
+  color: inherit;
+}
+
+.root > :first-child {
+  margin-top: 0;
+}
+
+.root :where(li) > input[type='checkbox'] {
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+
+.root :where(ul, ol):has(> li > input[type='checkbox']) {
+  padding-left: 4px;
+  list-style: none;
+}
+
+.link {
+  cursor: default;
+}
+
+.image {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--rb-hover);
+  color: var(--rb-text-faint);
+  font-size: 0.9em;
+}

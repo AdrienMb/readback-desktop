@@ -27,23 +27,3 @@
 .column[data-wide] {
   max-width: 1280px;
 }
-
-.input {
-  border: none;
-  background: transparent;
-  padding: 0;
-  resize: none;
-  color: var(--rb-text-body);
-  font-size: 14.5px;
-  line-height: 1.7;
-  letter-spacing: 0.005em;
-}
-
-.input:focus,
-.input:focus-visible {
-  outline: none;
-}
-
-.input[readonly] {
-  color: var(--rb-text-faint);
-}

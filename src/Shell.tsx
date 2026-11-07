@@ -6,6 +6,7 @@ import {
   Container,
   Loader,
   Menu,
+  SegmentedControl,
   Stack,
   Text,
   Tooltip,
@@ -38,7 +39,7 @@ import {
   trashEntry,
 } from './notes/api';
 import { ConfirmDialog, MoveDialog, NameDialog } from './notes/EntryDialogs';
-import { NoteEditor, type NoteEditorHandle } from './notes/NoteEditor';
+import { NoteEditor, type NoteEditorHandle, type NoteMode } from './notes/NoteEditor';
 import { NotesErrorNotice } from './notes/NotesErrorNotice';
 import { ChevronDownIcon, GearIcon, HomeIcon, SidebarIcon } from './notes/icons';
 import { type EntryActions, EntryMenuItems, Sidebar } from './notes/Sidebar';
@@ -93,6 +94,7 @@ export function Shell() {
   const [docId, setDocId] = useState(0);
   const [view, setView] = useState<'notes' | 'settings'>('notes');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mode, setMode] = useState<NoteMode>('edit');
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -232,6 +234,20 @@ export function Shell() {
     };
   }, [applyVault, ask, setOpen]);
 
+  // ⌘E switches the open note between view and edit.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'e' || !event.metaKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      if (view !== 'notes' || !openPath || dialog || confirm) return;
+      event.preventDefault();
+      setMode((current) => (current === 'edit' ? 'view' : 'edit'));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [view, openPath, dialog, confirm]);
+
   // ---------------------------------------------------------------------------------------------
   // Vault choice
   // ---------------------------------------------------------------------------------------------
@@ -314,6 +330,7 @@ export function Shell() {
         const entry = await createNote(dialog.parent, value);
         addEntries([entry]);
         if (dialog.parent) setExpanded((state) => ({ ...state, [dialog.parent]: true }));
+        setMode('edit');
         await openNote(entry);
         break;
       }
@@ -443,6 +460,24 @@ export function Shell() {
             </span>
           )}
         </div>
+        {view === 'notes' && openPath && (
+          <div className={classes.titlebarRight} data-tauri-drag-region>
+            <Tooltip label="Switch view (⌘E)" openDelay={400}>
+              <SegmentedControl
+                size="xs"
+                radius="md"
+                aria-label="Note mode"
+                className={classes.modeControl}
+                value={mode}
+                onChange={(value) => setMode(value as NoteMode)}
+                data={[
+                  { label: 'View', value: 'view' },
+                  { label: 'Edit', value: 'edit' },
+                ]}
+              />
+            </Tooltip>
+          </div>
+        )}
       </header>
 
       <div className={classes.body}>
@@ -553,6 +588,7 @@ export function Shell() {
                 <NoteEditor
                   key={docId}
                   ref={editorRef}
+                  mode={mode}
                   relPath={openPath}
                   entry={openEntry}
                   onEntries={addEntries}
