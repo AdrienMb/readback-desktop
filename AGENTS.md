@@ -17,8 +17,9 @@ src/                     React 19 + Mantine 9 frontend (webview). Display only.
   components/            ContinueWithChatGPT (official button), ManageUsageButton, PromptPanel,
                          ErrorNotice, WelcomeModal
   notes/                 notes UI: api.ts (commands + vault:// events), tree.ts (pure tree
-                         helpers), Sidebar, NoteEditor (autosave, on-disk change banners,
-                         view/edit mode), MarkdownEditor (CodeMirror 6), MarkdownView
+                         helpers), Sidebar (drag a row onto a folder or empty space to
+                         move it, @dnd-kit/core), NoteEditor (autosave, on-disk change
+                         banners, view/edit mode), MarkdownEditor (CodeMirror 6), MarkdownView
                          (react-markdown + GFM, links don't navigate), VaultSetup (onboarding /
                          missing), EntryDialogs, NotesErrorNotice
   assets/                official ChatGPT logos (from developers.openai.com)

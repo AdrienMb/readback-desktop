@@ -13,6 +13,8 @@
   --rb-rail-active: #e3e8ea;
   --rb-rail-active-icon: #1f3a4a;
   --rb-guide: #e1e5e7;
+  --rb-drop: #e3eef4;
+  --rb-drop-border: #8fb4c9;
 }
 
 [data-mantine-color-scheme='dark'] {
@@ -29,6 +31,8 @@
   --rb-rail-active: #33373a;
   --rb-rail-active-icon: #e3e6e8;
   --rb-guide: #3a3e41;
+  --rb-drop: #26353e;
+  --rb-drop-border: #4d7489;
 }
 
 html,

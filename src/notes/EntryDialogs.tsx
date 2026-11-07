@@ -1,4 +1,4 @@
-import { Button, Group, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { useState } from 'react';
 import { type NoteError, toNoteError } from './api';
 import { NotesErrorNotice } from './NotesErrorNotice';
@@ -67,68 +67,6 @@ export function NameDialog({
           </Group>
         </Stack>
       </form>
-    </Modal>
-  );
-}
-
-interface MoveDialogProps {
-  name: string;
-  rootName: string;
-  targets: string[];
-  onSubmit: (parentRel: string) => Promise<void>;
-  onClose: () => void;
-}
-
-export function MoveDialog({ name, rootName, targets, onSubmit, onClose }: MoveDialogProps) {
-  const [target, setTarget] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<NoteError | null>(null);
-  // Select values can't be empty strings, so the top level is "/".
-  const data = targets.map((path) => ({
-    value: path === '' ? '/' : path,
-    label: path === '' ? `${rootName} (top level)` : path,
-  }));
-
-  async function submit() {
-    if (target === null) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onSubmit(target === '/' ? '' : target);
-      onClose();
-    } catch (raw) {
-      setError(toNoteError(raw));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal opened onClose={onClose} title={`Move “${name}”`} centered>
-      <Stack gap="md">
-        {data.length === 0 ? (
-          <Text size="sm">There’s no other folder to move it to.</Text>
-        ) : (
-          <Select
-            label="Move to"
-            placeholder="Choose a folder"
-            data={data}
-            value={target}
-            onChange={setTarget}
-            searchable
-            data-autofocus
-          />
-        )}
-        {error && <NotesErrorNotice error={error} />}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button onClick={() => void submit()} loading={busy} disabled={target === null}>
-            Move
-          </Button>
-        </Group>
-      </Stack>
     </Modal>
   );
 }

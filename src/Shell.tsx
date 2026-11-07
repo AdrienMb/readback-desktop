@@ -38,7 +38,7 @@ import {
   toNoteError,
   trashEntry,
 } from './notes/api';
-import { ConfirmDialog, MoveDialog, NameDialog } from './notes/EntryDialogs';
+import { ConfirmDialog, NameDialog } from './notes/EntryDialogs';
 import { NoteEditor, type NoteEditorHandle, type NoteMode } from './notes/NoteEditor';
 import { NotesErrorNotice } from './notes/NotesErrorNotice';
 import { ChevronDownIcon, GearIcon, HomeIcon, SidebarIcon } from './notes/icons';
@@ -47,7 +47,6 @@ import {
   type Entries,
   applyChanges,
   isWithin,
-  moveTargets,
   removeSubtree,
   renamedPath,
   toEntries,
@@ -58,8 +57,7 @@ import classes from './Shell.module.css';
 type Dialog =
   | { type: 'new_note'; parent: string }
   | { type: 'new_folder'; parent: string }
-  | { type: 'rename'; entry: Entry }
-  | { type: 'move'; entry: Entry };
+  | { type: 'rename'; entry: Entry };
 
 interface Confirm {
   title: string;
@@ -346,13 +344,19 @@ export function Shell() {
         followMove(dialog.entry.relPath, moved);
         break;
       }
-      case 'move': {
-        if (!(await saveIfAffected(dialog.entry))) return;
-        const moved = await moveEntry(dialog.entry.relPath, value);
-        followMove(dialog.entry.relPath, moved);
-        if (value) setExpanded((state) => ({ ...state, [value]: true }));
-        break;
-      }
+    }
+  }
+
+  /** A drag and drop in the sidebar: move `entry` into `parent` ('' is the top level). */
+  async function moveTo(entry: Entry, parent: string) {
+    setActionError(null);
+    if (!(await saveIfAffected(entry))) return;
+    try {
+      const moved = await moveEntry(entry.relPath, parent);
+      followMove(entry.relPath, moved);
+      if (parent) setExpanded((state) => ({ ...state, [parent]: true }));
+    } catch (raw) {
+      setActionError(toNoteError(raw));
     }
   }
 
@@ -396,7 +400,6 @@ export function Shell() {
     onNewNote: (parent) => setDialog({ type: 'new_note', parent }),
     onNewFolder: (parent) => setDialog({ type: 'new_folder', parent }),
     onRename: (entry) => setDialog({ type: 'rename', entry }),
-    onMove: (entry) => setDialog({ type: 'move', entry }),
     onTrash: (entry) => void trash(entry),
     onReveal: (relPath) => void run(() => revealInFinder(relPath)),
     onOpenInDefaultApp: (entry) =>
@@ -526,6 +529,7 @@ export function Shell() {
                 expanded={expanded}
                 onExpandedChange={setExpanded}
                 onChangeVault={() => void switchVault(chooseVault, 'choose')}
+                onMoveTo={(entry, parent) => void moveTo(entry, parent)}
                 {...entryActions}
               />
             </Box>
@@ -637,15 +641,6 @@ export function Shell() {
               ? dialog.entry.name.replace(/\.md$/i, '')
               : dialog.entry.name
           }
-          onSubmit={submitDialog}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog?.type === 'move' && (
-        <MoveDialog
-          name={dialog.entry.name}
-          rootName={rootName}
-          targets={moveTargets(entries, dialog.entry)}
           onSubmit={submitDialog}
           onClose={() => setDialog(null)}
         />

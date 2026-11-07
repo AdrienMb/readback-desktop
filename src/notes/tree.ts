@@ -84,13 +84,9 @@ export function buildTree(entries: Entries): TreeNodeData[] {
   return build('');
 }
 
-/** Folders a note or folder could move into ('' is the top level). */
-export function moveTargets(entries: Entries, moving: Entry): string[] {
-  const current = parentOf(moving.relPath);
-  const targets = [...entries.values()]
-    .filter((entry) => entry.kind === 'folder')
-    .map((entry) => entry.relPath)
-    .filter((path) => !(moving.kind === 'folder' && isWithin(path, moving.relPath)))
-    .sort((a, b) => collator.compare(a, b));
-  return ['', ...targets].filter((path) => path !== current);
+/** Whether `moving` can move into `parentRel` ('' is the top level): not where it already is,
+ * and a folder not into itself or one of its own folders. */
+export function canMoveTo(moving: Entry, parentRel: string): boolean {
+  if (parentRel === parentOf(moving.relPath)) return false;
+  return !(moving.kind === 'folder' && isWithin(parentRel, moving.relPath));
 }
