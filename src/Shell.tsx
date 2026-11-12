@@ -53,6 +53,7 @@ import {
 } from './notes/tree';
 import { Onboarding, VaultProblem } from './notes/VaultSetup';
 import classes from './Shell.module.css';
+import { SIDEBAR_WIDTH_VAR, useSidebarResize } from './useSidebarResize';
 
 type Dialog =
   | { type: 'new_note'; parent: string }
@@ -68,7 +69,6 @@ interface Confirm {
 }
 
 const RAIL_WIDTH = 44;
-const SIDEBAR_WIDTH = 228;
 
 function remapExpanded(state: Record<string, boolean>, from: string, to: string) {
   const next: Record<string, boolean> = {};
@@ -98,9 +98,14 @@ export function Shell() {
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<NoteError | null>(null);
 
+  const windowRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<NoteEditorHandle | null>(null);
   const openPathRef = useRef<string | null>(null);
   const vaultRef = useRef<Vault | null>(null);
+
+  const { windowStyle, handleProps } = useSidebarResize(windowRef, RAIL_WIDTH, () =>
+    setSidebarOpen(false),
+  );
 
   const setOpen = useCallback((path: string | null) => {
     openPathRef.current = path;
@@ -412,11 +417,13 @@ export function Shell() {
   const noteTitle = openPath ? (openEntry?.title ?? openPath.split('/').pop() ?? '') : null;
 
   return (
-    <div className={classes.window}>
+    <div ref={windowRef} className={classes.window} style={windowStyle}>
       <header className={classes.titlebar} data-tauri-drag-region>
         <div
           className={classes.titlebarLeft}
-          style={showSidebar ? { width: RAIL_WIDTH + SIDEBAR_WIDTH } : undefined}
+          style={
+            showSidebar ? { width: `calc(${RAIL_WIDTH}px + var(${SIDEBAR_WIDTH_VAR}))` } : undefined
+          }
           data-tauri-drag-region
         >
           {view === 'notes' && (
@@ -520,7 +527,7 @@ export function Shell() {
           </Box>
 
           {showSidebar && (
-            <Box className={classes.sidebar} w={SIDEBAR_WIDTH}>
+            <Box id="notes-sidebar" className={classes.sidebar}>
               <Sidebar
                 vault={vault}
                 rootPath={ready ? rootPath : null}
@@ -531,6 +538,11 @@ export function Shell() {
                 onChangeVault={() => void switchVault(chooseVault, 'choose')}
                 onMoveTo={(entry, parent) => void moveTo(entry, parent)}
                 {...entryActions}
+              />
+              <div
+                className={classes.resizeHandle}
+                aria-controls="notes-sidebar"
+                {...handleProps}
               />
             </Box>
           )}
